@@ -84,7 +84,7 @@ export default function Dashboard() {
         {/* CHART MONITORING */}
         <div className="lg:col-span-2 bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 shadow-xl">
           <h3 className="text-xl font-semibold mb-6 flex items-center gap-2">
-            <Activity className="text-blue-400" /> Tren Kasus Real-time
+            <Activity className="text-blue-400" /> Laporan Kasus DBD
           </h3>
           <div className="h-[300px] w-full">
             <ResponsiveContainer width="100%" height="100%">
