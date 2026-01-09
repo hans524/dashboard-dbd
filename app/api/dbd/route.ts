@@ -1,55 +1,98 @@
 // src/app/api/dbd/route.ts
 import { NextResponse } from 'next/server';
+import path from 'path';
+import * as XLSX from 'xlsx'; // Pastikan sudah install: npm install xlsx
+import fs from 'fs';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const year = searchParams.get('year') || '2024';
 
-  // --- DATA DUMMY LENGKAP SEMARANG (16 KECAMATAN) ---
-  // Ini simulasi data jika Excel belum siap. 
-  // Cluster: 0=Aman(Hijau), 1=Waspada(Oranye), 2=Bahaya(Merah)
+  // 1. BACA FILE EXCEL DARI FOLDER PUBLIC/DATA
+  // File ini adalah hasil output dari Google Colab Anda
+  const filePath = path.join(process.cwd(), 'public', 'data', `dbd_${year}.xlsx`);
   
-  const semarangData = [
-    { kecamatan: "Semarang Tengah", lat: -6.9814, lng: 110.4173, cluster: 1, kasus: 45, prediksi: 48 },
-    { kecamatan: "Semarang Utara", lat: -6.9566, lng: 110.4123, cluster: 2, kasus: 89, prediksi: 95 },
-    { kecamatan: "Semarang Selatan", lat: -6.9961, lng: 110.4143, cluster: 1, kasus: 50, prediksi: 42 },
-    { kecamatan: "Semarang Barat", lat: -6.9868, lng: 110.3879, cluster: 2, kasus: 76, prediksi: 80 },
-    { kecamatan: "Semarang Timur", lat: -6.9742, lng: 110.4357, cluster: 1, kasus: 40, prediksi: 45 },
-    { kecamatan: "Gayamsari", lat: -6.9840, lng: 110.4502, cluster: 1, kasus: 35, prediksi: 30 },
-    { kecamatan: "Genuk", lat: -6.9634, lng: 110.4704, cluster: 2, kasus: 92, prediksi: 100 },
-    { kecamatan: "Pedurungan", lat: -7.0051, lng: 110.4746, cluster: 2, kasus: 110, prediksi: 115 },
-    { kecamatan: "Tembalang", lat: -7.0601, lng: 110.4678, cluster: 2, kasus: 120, prediksi: 105 },
-    { kecamatan: "Banyumanik", lat: -7.0722, lng: 110.4140, cluster: 1, kasus: 65, prediksi: 60 },
-    { kecamatan: "Gajahmungkur", lat: -7.0205, lng: 110.4116, cluster: 0, kasus: 20, prediksi: 18 },
-    { kecamatan: "Candisari", lat: -7.0125, lng: 110.4294, cluster: 1, kasus: 42, prediksi: 44 },
-    { kecamatan: "Gunungpati", lat: -7.0744, lng: 110.3644, cluster: 0, kasus: 25, prediksi: 28 },
-    { kecamatan: "Mijen", lat: -7.0636, lng: 110.3236, cluster: 0, kasus: 15, prediksi: 12 },
-    { kecamatan: "Ngaliyan", lat: -7.0175, lng: 110.3396, cluster: 1, kasus: 55, prediksi: 58 },
-    { kecamatan: "Tugu", lat: -6.9749, lng: 110.3175, cluster: 0, kasus: 10, prediksi: 8 },
-  ];
+  let locations = [];
+  let summaryStats = {
+      total: 0,
+      meninggal: 0,
+      active: 0,
+      cfr: "0%",
+      affected: 0,
+      // METRIK AI BARU
+      avg_rmse: 0,
+      avg_mape: 0,
+      model_accuracy: 0
+  };
 
-  // Hitung total real-time
-  const totalKasus = semarangData.reduce((acc, curr) => acc + curr.kasus, 0);
-  const totalPrediksi = semarangData.reduce((acc, curr) => acc + curr.prediksi, 0);
-  const selisihPrediksi = totalPrediksi - totalKasus;
+  try {
+      if (fs.existsSync(filePath)) {
+          const workbook = XLSX.readFile(filePath);
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          const data: any[] = XLSX.utils.sheet_to_json(sheet);
+
+          let totalRmse = 0;
+          let totalMape = 0;
+          let count = 0;
+
+          locations = data.map((row: any) => {
+              // Akumulasi Metrik Evaluasi
+              if (row.RMSE) totalRmse += parseFloat(row.RMSE);
+              if (row.MAPE) totalMape += parseFloat(row.MAPE);
+              count++;
+
+              return {
+                  kecamatan: row.Kecamatan || row.wilayah,
+                  lat: row.Latitude || row.Lat,
+                  lng: row.Longitude || row.Lng,
+                  kasus: row.Jumlah_Kasus || 0,
+                  meninggal: row.Meninggal || 0,
+                  // Ambil data prediksi & status dari Python
+                  prediksi: row.Prediksi_Bulan_Depan || row.Prediksi_SARIMA || 0,
+                  cluster: row.Cluster_ID || row.Cluster || 0,
+                  status: row['Status Risiko'] || 'Belum Ada Data'
+              };
+          });
+
+          // HITUNG TOTAL STATISTIK
+          const totalKasus = locations.reduce((acc, curr) => acc + curr.kasus, 0);
+          const totalMeninggal = locations.reduce((acc, curr) => acc + curr.meninggal, 0);
+          
+          // Rata-rata Skor AI
+          const avgRmse = count > 0 ? (totalRmse / count).toFixed(2) : 0;
+          const avgMape = count > 0 ? (totalMape / count).toFixed(2) : 0;
+          const accuracy = count > 0 ? (100 - parseFloat(avgMape as string)).toFixed(1) : 0;
+
+          summaryStats = {
+              total: totalKasus,
+              meninggal: totalMeninggal,
+              active: Math.floor(totalKasus * 0.15), // Estimasi aktif
+              cfr: totalKasus > 0 ? ((totalMeninggal / totalKasus) * 100).toFixed(2) + '%' : '0%',
+              affected: locations.filter(l => l.kasus > 0).length,
+              avg_rmse: Number(avgRmse),
+              avg_mape: Number(avgMape),
+              model_accuracy: Number(accuracy) // Contoh: 90.5% Akurat
+          };
+      } else {
+          console.error("File Excel tidak ditemukan:", filePath);
+      }
+  } catch (error) {
+      console.error("Error reading excel:", error);
+  }
+
+  // DATA DUMMY BULANAN (Karena Excel Anda per tahun, kita simulasi grafik bulanan)
+  // Di project real, harusnya Excel punya kolom Jan-Des.
+  const monthlyPattern = [10, 20, 45, 80, 60, 40, 30, 20, 15, 20, 35, 50]; 
+  const monthlyTrend = monthlyPattern.map((p, i) => ({
+      name: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'][i],
+      kasus: Math.floor((summaryStats.total / 365) * p) // Distribusi kasar
+  }));
 
   return NextResponse.json({
     year,
-    summary: { 
-        total: totalKasus, 
-        active: Math.floor(totalKasus * 0.1), // Asumsi 10% aktif
-        prediksiTotal: totalPrediksi, // <--- Data Baru
-        trendPrediksi: selisihPrediksi > 0 ? `+${selisihPrediksi}` : `${selisihPrediksi}`,
-        affected: 16 
-    },
-    monthlyTrend: [
-       { name: 'Jan', kasus: 40 }, { name: 'Feb', kasus: 65 }, 
-       { name: 'Mar', kasus: 90 }, { name: 'Apr', kasus: 120 }, // Puncak musim hujan
-       { name: 'Mei', kasus: 80 }, { name: 'Jun', kasus: 60 },
-       { name: 'Jul', kasus: 40 }, { name: 'Agu', kasus: 20 },
-       { name: 'Sep', kasus: 25 }, { name: 'Okt', kasus: 35 },
-       { name: 'Nov', kasus: 55 }, { name: 'Des', kasus: 70 }
-    ],
-    locations: semarangData
+    summary: summaryStats, // <--- Data RMSE/MAPE dikirim disini
+    monthlyTrend: monthlyTrend,
+    locations: locations
   });
-}
+}s
