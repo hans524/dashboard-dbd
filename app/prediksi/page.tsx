@@ -7,12 +7,12 @@ import {
   ComposedChart, 
   Line, 
   Area, 
-  XAxis, a
-  YAxis, z
+  XAxis, 
+  YAxis, 
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer 
-} from 'recharts';a
+} from 'recharts';
 import { Calendar, ArrowLeft, Download, RefreshCw, Loader2 } from 'lucide-react';
 
 export default function PrediksiPage() {

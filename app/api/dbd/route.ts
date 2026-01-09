@@ -12,7 +12,7 @@ export async function GET(request: Request) {
   // File ini adalah hasil output dari Google Colab Anda
   const filePath = path.join(process.cwd(), 'public', 'data', `dbd_${year}.xlsx`);
   
-  let locations = [];
+let locations: any[] = [];
   let summaryStats = {
       total: 0,
       meninggal: 0,
@@ -95,4 +95,4 @@ export async function GET(request: Request) {
     monthlyTrend: monthlyTrend,
     locations: locations
   });
-}s
+}
