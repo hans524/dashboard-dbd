@@ -25,17 +25,14 @@ export default function Footer() {
         {/* KOLOM 1: IDENTITAS & DESKRIPSI */}
         <div>
           <div className="flex items-center gap-2 mb-4">
-            <div className="bg-blue-600 p-2 rounded-lg text-white">
-              <Activity size={24} />
-            </div>
             <div>
-              <h3 className="text-xl font-bold text-white tracking-tight leading-none">SMART-VEC</h3>
+              <h3 className="text-xl font-bold text-white tracking-tight leading-none">DEMIS</h3>
               <p className="text-[10px] text-blue-400 font-medium">Dengue Monitoring Information System</p>
             </div>
           </div>
           
           <p className="mb-4 leading-relaxed text-slate-400">
-            Sistem monitoring, klasterisasi dan prediksi persebaran Demam Berdarah Dengue (DBD) berbasis Machine Learning untuk Kota Semarang.
+            Sistem monitoring, pemetaan dan prediksi persebaran Demam Berdarah Dengue (DBD) berbasis Machine Learning untuk Kota Semarang.
           </p>
 
           <div className="mb-4">
@@ -51,14 +48,6 @@ export default function Footer() {
             <p className="text-white font-medium">Tunggal Dara</p>
           </div>
 
-          {/* Social Icons */}
-          <div className="flex gap-3">
-            {[Facebook, Instagram, Twitter, Github].map((Icon, i) => (
-              <a key={i} href="#" className="bg-slate-800 p-2 rounded-full hover:bg-blue-600 hover:text-white transition-all">
-                <Icon size={16} />
-              </a>
-            ))}
-          </div>
         </div>
 
         {/* KOLOM 2: KONTAK & ALAMAT */}
@@ -84,11 +73,7 @@ export default function Footer() {
 
           <div className="my-6 border-t border-slate-800"></div>
 
-          {/* HOTLINE KHUSUS (WARNA MERAH) */}
-          <div className="flex items-center gap-3 text-red-400">
-            <HeartPulse className="shrink-0" size={20} />
-            <span className="font-bold text-base">Hotline DBD 24/7: 119</span>
-          </div>
+          
         </div>
 
         {/* KOLOM 3: TAUTAN CEPAT */}
@@ -124,7 +109,7 @@ export default function Footer() {
             </li>
             <li className="flex items-center gap-3 text-purple-400 font-medium">
               <Code2 size={20} />
-              <span>Model Time Series</span>
+              <span>Model Prediksi Time Series ARIMA - SARIMA</span>
             </li>
           </ul>
         </div>
@@ -133,7 +118,7 @@ export default function Footer() {
 
       {/* COPYRIGHT BAWAH */}
       <div className="max-w-7xl mx-auto px-6 mt-12 pt-8 border-t border-slate-800 text-center text-xs text-slate-600">
-        &copy; {new Date().getFullYear()} D-MOSAI Team UDINUS. All rights reserved.
+        &copy; {new Date().getFullYear()} Created by Kelompok 5 Mata Kuliah Sistem Informasi Cerdas
       </div>
     </footer>
   );
