@@ -38,7 +38,7 @@ export default function DataPage() {
              <Activity size={12} /> Sistem Monitoring Terdepan
           </div>
           <h1 className="text-4xl font-extrabold mb-1 tracking-tight text-white drop-shadow-lg">
-            SMART-VEC
+            DEMIS
           </h1>
           <p className="text-blue-200 opacity-80 text-sm">Data & Analisis Terperinci</p>
         </div>
