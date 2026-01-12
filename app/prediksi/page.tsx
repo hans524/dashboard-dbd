@@ -1,263 +1,218 @@
 // src/app/prediksi/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { 
-  ComposedChart, 
-  Line, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceArea 
 } from 'recharts';
-import { Calendar, ArrowLeft, Download, RefreshCw, Loader2 } from 'lucide-react';
+import { 
+  ArrowLeft, BrainCircuit, Calendar, Download, RefreshCw, 
+  ChevronDown, Home, LayoutDashboard, AlertTriangle 
+} from 'lucide-react';
 
-export default function PrediksiPage() {
-  const [period, setPeriod] = useState(6); // Default 6 bulan ke depan
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+// --- DATA DUMMY UNTUK CHART & TABEL (Bisa diganti API nanti) ---
+const chartData = [
+  { month: 'Jan 23', actual: 120, predicted: null },
+  { month: 'Apr 23', actual: 350, predicted: null },
+  { month: 'Jul 23', actual: 180, predicted: null },
+  { month: 'Okt 23', actual: 210, predicted: null },
+  { month: 'Jan 24', actual: 90, predicted: null },
+  { month: 'Apr 24', actual: 85, predicted: null },
+  { month: 'Jul 24', actual: 130, predicted: null },
+  { month: 'Okt 24', actual: 240, predicted: null },
+  { month: 'Jan 25', actual: 160, predicted: null },
+  { month: 'Apr 25', actual: 100, predicted: null },
+  { month: 'Jul 25', actual: 50, predicted: null },
+  { month: 'Okt 25', actual: 80, predicted: null },
+  { month: 'Des 25', actual: 110, predicted: 110 }, // Titik temu
+  { month: 'Jan 26', actual: null, predicted: 97 },
+  { month: 'Feb 26', actual: null, predicted: 95 },
+  { month: 'Mar 26', actual: null, predicted: 101 },
+  { month: 'Apr 26', actual: null, predicted: 100 },
+  { month: 'Mei 26', actual: null, predicted: 113 },
+  { month: 'Jun 26', actual: null, predicted: 108 },
+];
 
-  // --- FUNGSI FETCH DATA DARI API ---
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true);
-      try {
-        // 1. Kita ambil data 3 tahun terakhir dari API kita sendiri
-        // Menggunakan Promise.all agar fetch berjalan paralel (lebih cepat)
-        const [res23, res24, res25] = await Promise.all([
-          fetch('/api/dbd?year=2023').then(r => r.json()),
-          fetch('/api/dbd?year=2024').then(r => r.json()),
-          fetch('/api/dbd?year=2025').then(r => r.json())
-        ]);
+const tableData = [
+  { month: 'Jan 26', val: 97, min: 87, max: 112, status: 'Waspada' },
+  { month: 'Feb 26', val: 95, min: 85, max: 110, status: 'Waspada' },
+  { month: 'Mar 26', val: 101, min: 91, max: 116, status: 'Waspada' },
+  { month: 'Apr 26', val: 100, min: 90, max: 115, status: 'Waspada' },
+  { month: 'Mei 26', val: 113, min: 103, max: 128, status: 'Waspada' },
+  { month: 'Jun 26', val: 108, min: 98, max: 123, status: 'Waspada' },
+];
 
-        // 2. Format Data Historis (Aktual)
-        // Kita gabungkan monthlyTrend dari masing-masing tahun
-        const history23 = formatMonthlyData(res23.monthlyTrend, '23');
-        const history24 = formatMonthlyData(res24.monthlyTrend, '24');
-        const history25 = formatMonthlyData(res25.monthlyTrend, '25');
-
-        const fullHistory = [...history23, ...history24, ...history25];
-
-        // 3. Generate Data Prediksi (Masa Depan)
-        // Karena data 2026 belum ada, kita proyeksikan berdasarkan data terakhir (2025)
-        // Dalam aplikasi real, ini bisa diambil dari endpoint API khusus prediksi (/api/predict)
-        const lastValue = fullHistory[fullHistory.length - 1].aktual || 0;
-        const future = generatePredictionData(lastValue, period);
-
-        // 4. Gabungkan: History + Bridge (Titik Sambung) + Future
-        // Bridge point penting agar garis nyambung dari Aktual ke Prediksi
-        const bridgePoint = {
-             name: fullHistory[fullHistory.length - 1].name,
-             aktual: null,
-             prediksi: lastValue, // Titik temu
-             range: [lastValue, lastValue]
-        };
-
-        setChartData([...fullHistory, bridgePoint, ...future]);
-
-      } catch (error) {
-        console.error("Gagal mengambil data:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchData();
-  }, [period]); // Re-run jika periode berubah
-
-  // --- HELPER 1: Format Data API ke Format Chart ---
-  const formatMonthlyData = (monthlyTrend: any[], yearSuffix: string) => {
-    if(!monthlyTrend) return [];
-    return monthlyTrend.map((item: any) => ({
-      name: `${item.name} ${yearSuffix}`, // Contoh: "Jan 23"
-      aktual: item.kasus,
-      prediksi: null,
-      range: [null, null]
-    }));
-  };
-
-  // --- HELPER 2: Generate Prediksi (Simulasi AI) ---
-  const generatePredictionData = (startValue: number, months: number) => {
-    const futureData = [];
-    const monthsName = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
-    let currentValue = startValue;
-
-    for (let i = 1; i <= months; i++) {
-        // Logika Proyeksi Sederhana (Naik turun acak untuk simulasi tren)
-        // Di sistem asli, angka ini datang dari Python
-        const change = Math.floor(Math.random() * 20) - 5; // Fluktuasi -5 sampai +15
-        currentValue = Math.max(0, currentValue + change); // Tidak boleh minus
-        
-        const mIndex = (i - 1) % 12; 
-        
-        futureData.push({ 
-            name: `${monthsName[mIndex]} 26`, 
-            aktual: null, 
-            prediksi: currentValue,
-            // Range Confidence Interval (Area Hijau)
-            range: [Math.max(0, currentValue - 10), currentValue + 15] 
-        });
-    }
-    return futureData;
-  };
+export default function PredictionPage() {
+  const [timeRange, setTimeRange] = useState('6 Bulan');
 
   return (
-    <div className="min-h-screen bg-[#172554] text-white pb-20 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white p-6 pb-20 font-sans">
       
-      {/* Navbar */}
-      <nav className="px-6 py-6 flex justify-between items-center max-w-[1400px] mx-auto">
-        <Link 
-            href="/" 
-            className="flex items-center gap-2 bg-[#1e3a8a] hover:bg-[#2563eb] text-white px-5 py-3 rounded-lg border border-blue-800 transition-all text-sm font-medium shadow-md"
-        >
-            <ArrowLeft size={18} />
-            Kembali ke Beranda
-        </Link>
-
-        <div className="text-right">
-             <h1 className="text-xl font-bold text-white tracking-tight">
-                AI Prediction Center
-             </h1>
-             <p className="text-xs text-blue-200">Powered by SARIMA Model</p>
-        </div>
-      </nav>
-
-      <main className="max-w-[1400px] mx-auto p-6 lg:p-8">
+      {/* --- HEADER (SERAGAM DENGAN DASHBOARD) --- */}
+      <header className="relative flex flex-col xl:flex-row justify-between items-center mb-10 gap-6 py-2">
         
-        {/* Header Section */}
-        <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
+        {/* 1. BAGIAN KIRI */}
+        <div className="w-full xl:w-auto flex flex-col justify-center xl:block z-10">
+          <div className="bg-purple-600/30 text-purple-200 text-[10px] font-bold px-3 py-1 rounded-full w-fit mb-2 flex items-center gap-2 border border-purple-400/20 backdrop-blur-sm">
+             <BrainCircuit size={12} /> AI Prediction Center
+          </div>
+          <h1 className="text-4xl font-extrabold mb-1 tracking-tight text-white drop-shadow-lg">
+            SMART-VEC
+          </h1>
+          <p className="text-blue-200 opacity-80 text-sm">Forecasting & Early Warning System</p>
+        </div>
+
+        {/* 2. BAGIAN TENGAH (NAVIGASI) */}
+        <nav className="hidden xl:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/10 backdrop-blur-md border border-white/10 rounded-full p-1.5 shadow-2xl items-center gap-1 z-10">
+            <Link href="/" className="flex items-center gap-2 px-5 py-2.5 text-blue-100 hover:text-white hover:bg-white/10 rounded-full text-sm font-medium transition-all">
+                <Home size={16} /> Beranda
+            </Link>
+            <Link href="/datatabel" className="flex items-center gap-2 px-5 py-2.5 text-blue-100 hover:text-white hover:bg-white/10 rounded-full text-sm font-medium transition-all">
+                <LayoutDashboard size={16} /> Detail Data
+            </Link>
+            {/* Menu Prediksi Aktif */}
+            <Link href="/prediksi" className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/40 transition-all hover:scale-105">
+                <BrainCircuit size={16} /> Prediksi
+            </Link>
+        </nav>
+
+        {/* 3. BAGIAN KANAN */}
+        <div className="flex justify-end gap-3 w-full xl:w-auto z-10">
+             <Link href="/" className="flex items-center gap-2 text-sm text-blue-300 hover:text-white transition px-4 py-2">
+                <ArrowLeft size={16}/> <span className="hidden sm:block">Kembali</span>
+             </Link>
+             <button className="bg-white text-blue-900 px-5 py-2.5 rounded-xl font-bold hover:bg-blue-50 transition flex items-center gap-2 shadow-lg shadow-blue-900/20">
+                <RefreshCw size={16} /> <span>Refresh Data</span>
+             </button>
+        </div>
+      </header>
+
+      {/* --- KONTEN PREDIKSI --- */}
+      
+      {/* 1. BAGIAN GRAFIK (GLASS CARD) */}
+      <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-2xl mb-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-                <h2 className="text-3xl font-bold text-white mb-2">Proyeksi Demam Berdarah</h2>
-                <p className="text-blue-200">Analisis tren berdasarkan Data Riil (2023-2025) & Prediksi AI (2026).</p>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                    Proyeksi Demam Berdarah
+                </h2>
+                <p className="text-blue-200 text-sm mt-1 opacity-80">
+                    Analisis tren berdasarkan Data Riil (2023-2025) & Prediksi AI (2026).
+                </p>
             </div>
             
-            <button 
-                onClick={() => window.location.reload()} 
-                className="flex items-center gap-2 bg-white hover:bg-gray-100 text-[#172554] px-6 py-3 rounded-lg shadow-lg shadow-blue-900/50 transition-all font-bold"
-            >
-                <RefreshCw size={18} className="text-[#172554]"/>
-                Refresh Data
+            {/* Toggle Buttons */}
+            <div className="flex bg-blue-950/50 p-1 rounded-xl border border-white/10">
+                {['3 Bulan', '6 Bulan', '12 Bulan'].map((item) => (
+                    <button 
+                        key={item}
+                        onClick={() => setTimeRange(item)}
+                        className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${
+                            timeRange === item 
+                            ? 'bg-blue-500 text-white shadow-lg' 
+                            : 'text-blue-300 hover:bg-white/5'
+                        }`}
+                    >
+                        {item}
+                    </button>
+                ))}
+            </div>
+        </div>
+
+        {/* Chart Area */}
+        <div className="h-[400px] w-full bg-blue-900/20 rounded-2xl p-4 border border-white/5">
+            <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                    <defs>
+                        <linearGradient id="gridGradient" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="rgba(255,255,255,0.1)" />
+                            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                        </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#ffffff10" vertical={false} />
+                    <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} dy={10} />
+                    <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} axisLine={false} />
+                    <Tooltip 
+                        contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b', borderRadius: '12px', color: '#fff' }}
+                        itemStyle={{ fontSize: '12px' }}
+                    />
+                    {/* Garis Data Riil (Solid) */}
+                    <Line 
+                        type="monotone" 
+                        dataKey="actual" 
+                        name="Data Aktual"
+                        stroke="#fff" 
+                        strokeWidth={2} 
+                        dot={{ r: 4, fill: '#fff', strokeWidth: 0 }} 
+                        activeDot={{ r: 6 }}
+                    />
+                    {/* Garis Prediksi (Putus-putus / Hijau Tosca) */}
+                    <Line 
+                        type="monotone" 
+                        dataKey="predicted" 
+                        name="Prediksi AI"
+                        stroke="#2dd4bf" 
+                        strokeWidth={3} 
+                        strokeDasharray="5 5"
+                        dot={{ r: 4, fill: '#2dd4bf', strokeWidth: 0 }} 
+                    />
+                </LineChart>
+            </ResponsiveContainer>
+            
+            {/* Legend Custom */}
+            <div className="flex justify-center gap-6 mt-4 text-xs font-semibold">
+                <div className="flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-white"></span> Data Aktual (2023-2025)
+                </div>
+                <div className="flex items-center gap-2 text-teal-300">
+                    <span className="w-3 h-3 rounded-full bg-teal-400"></span> Prediksi AI (2026)
+                </div>
+            </div>
+        </div>
+      </div>
+
+      {/* 2. BAGIAN TABEL (GLASS CARD) */}
+      <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-2xl">
+        <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold flex items-center gap-2">
+                <Calendar size={20} className="text-blue-400"/> Data Tabel Prediksi (2026)
+            </h3>
+            <button className="flex items-center gap-2 text-xs font-bold bg-blue-600/20 text-blue-300 px-4 py-2 rounded-lg border border-blue-500/30 hover:bg-blue-600/40 transition">
+                <Download size={14} /> Unduh CSV
             </button>
         </div>
 
-        {/* CONTROLLER PERIODE */}
-        <div className="mb-6 flex items-center gap-2 bg-[#1e3a8a] w-fit p-1.5 rounded-lg border border-blue-800">
-             {[3, 6, 12].map((p) => (
-                <button 
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    className={`px-6 py-2 rounded-md text-sm font-semibold transition-all ${
-                        period === p 
-                        ? 'bg-white text-[#172554] shadow-sm' 
-                        : 'text-blue-300 hover:text-white hover:bg-blue-800'
-                    }`}
-                >
-                    {p} Bulan
-                </button>
-            ))}
+        <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="border-b border-white/10 text-blue-200 text-xs uppercase tracking-wider">
+                        <th className="p-4 font-semibold">Bulan</th>
+                        <th className="p-4 font-semibold">Prediksi Kasus</th>
+                        <th className="p-4 font-semibold">Min (Batas Bawah)</th>
+                        <th className="p-4 font-semibold">Max (Batas Atas)</th>
+                        <th className="p-4 font-semibold">Status</th>
+                    </tr>
+                </thead>
+                <tbody className="text-sm">
+                    {tableData.map((row, idx) => (
+                        <tr key={idx} className="border-b border-white/5 hover:bg-white/5 transition group">
+                            <td className="p-4 font-medium text-white">{row.month}</td>
+                            <td className="p-4 text-teal-300 font-bold text-lg">{row.val}</td>
+                            <td className="p-4 text-blue-200 opacity-70">{row.min}</td>
+                            <td className="p-4 text-blue-200 opacity-70">{row.max}</td>
+                            <td className="p-4">
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-orange-500/20 text-orange-300 border border-orange-500/30 group-hover:bg-orange-500 group-hover:text-white transition">
+                                    <AlertTriangle size={12} /> {row.status}
+                                </span>
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
         </div>
+      </div>
 
-        {/* Loading State */}
-        {loading ? (
-            <div className="h-[400px] w-full flex flex-col items-center justify-center bg-[#1e3a8a] rounded-2xl border border-blue-800 animate-pulse">
-                <Loader2 size={48} className="text-blue-400 animate-spin mb-4"/>
-                <p className="text-blue-200">Mengambil Data Riil dari Server...</p>
-            </div>
-        ) : (
-            <>
-                {/* CARD CHART UTAMA */}
-                <div className="bg-[#1e3a8a] rounded-2xl border border-blue-800 p-6 lg:p-8 shadow-2xl mb-8">
-                    {/* Legend */}
-                    <div className="flex justify-center gap-6 text-sm mb-8 flex-wrap">
-                        <div className="flex items-center gap-2 text-blue-100">
-                            <div className="w-3 h-3 rounded-full bg-white border border-blue-500"></div>
-                            Data Aktual (2023-2025)
-                        </div>
-                        <div className="flex items-center gap-2 text-blue-100">
-                            <div className="w-3 h-3 rounded-full bg-[#34d399] shadow-[0_0_10px_#34d399]"></div>
-                            <span className="text-[#34d399] font-semibold">Prediksi AI</span>
-                        </div>
-                    </div>
-
-                    <div className="h-[400px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <defs>
-                                    <linearGradient id="colorRange" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#34d399" stopOpacity={0.3}/> 
-                                        <stop offset="95%" stopColor="#34d399" stopOpacity={0}/>
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2563eb" opacity={0.3} />
-                                <XAxis 
-                                    dataKey="name" 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    tick={{fill: '#93c5fd', fontSize: 11}} 
-                                    dy={10} 
-                                    minTickGap={30}
-                                />
-                                <YAxis axisLine={false} tickLine={false} tick={{fill: '#93c5fd', fontSize: 11}} />
-                                <Tooltip 
-                                    contentStyle={{ backgroundColor: '#172554', border: '1px solid #2563eb', borderRadius: '8px', color: '#fff' }}
-                                />
-                                <Area type="monotone" dataKey="range" fill="url(#colorRange)" stroke="none" />
-                                <Line type="monotone" dataKey="aktual" stroke="#ffffff" strokeWidth={2} dot={{ r: 3, fill: '#1e3a8a', stroke: '#fff', strokeWidth: 2 }} connectNulls />
-                                <Line type="monotone" dataKey="prediksi" stroke="#34d399" strokeWidth={3} strokeDasharray="6 6" dot={{ r: 4, fill: '#34d399', strokeWidth: 0 }} connectNulls />
-                            </ComposedChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* TABEL RINCIAN */}
-                <div className="bg-[#1e3a8a] rounded-2xl border border-blue-800 overflow-hidden shadow-lg">
-                    <div className="p-6 border-b border-blue-800 flex justify-between items-center bg-blue-900/50">
-                        <h3 className="font-bold text-white text-lg flex items-center gap-2">
-                            <Calendar size={18} className="text-blue-300"/> Data Tabel Prediksi (2026)
-                        </h3>
-                        <button className="flex items-center gap-2 text-xs text-blue-200 font-semibold hover:text-white border border-blue-400/30 bg-blue-400/10 px-3 py-1.5 rounded-md transition-colors">
-                            <Download size={14}/> Unduh CSV
-                        </button>
-                    </div>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-[#172554] text-blue-300 uppercase text-xs font-bold tracking-wider">
-                                <tr>
-                                    <th className="px-6 py-4">Bulan</th>
-                                    <th className="px-6 py-4 text-[#34d399]">Prediksi Kasus</th>
-                                    <th className="px-6 py-4">Min</th>
-                                    <th className="px-6 py-4">Max</th>
-                                    <th className="px-6 py-4">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-blue-800">
-                                {chartData.filter(d => d.name.includes('26')).map((row, idx) => (
-                                    <tr key={idx} className="hover:bg-blue-800 transition-colors">
-                                        <td className="px-6 py-4 text-blue-100 font-medium">{row.name}</td>
-                                        <td className="px-6 py-4 font-bold text-[#34d399] text-base">{row.prediksi}</td>
-                                        <td className="px-6 py-4 text-blue-300">{row.range?.[0]}</td>
-                                        <td className="px-6 py-4 text-blue-300">{row.range?.[1]}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`text-xs font-bold px-3 py-1 rounded-full border ${
-                                                (row.prediksi || 0) > 40 
-                                                ? 'text-orange-300 bg-orange-900/40 border-orange-500/50'
-                                                : 'text-green-300 bg-green-900/40 border-green-500/50'
-                                            }`}>
-                                                {(row.prediksi || 0) > 40 ? 'Waspada' : 'Aman'}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </>
-        )}
-      </main>
     </div>
   );
 }

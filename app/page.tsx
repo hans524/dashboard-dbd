@@ -9,8 +9,11 @@ import {
 } from 'recharts';
 import { 
   Activity, Users, AlertTriangle, MapPin, BrainCircuit, 
-  ArrowRight, Home, LayoutDashboard, ChevronDown, Info, Layers
+  ArrowRight, Home, LayoutDashboard, ChevronDown
 } from 'lucide-react';
+
+// --- IMPORT KOMPONEN BARU ---
+import DetailedCharts from '@/components/DetailedCharts'; 
 
 // Import Map (Lazy Load)
 const MapCluster = dynamic(() => import('@/components/MapCluster'), { ssr: false });
@@ -42,10 +45,9 @@ export default function Dashboard() {
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-indigo-900 text-white p-6 pb-20 font-sans">
       
       {/* --- HEADER UTAMA --- */}
-      {/* relative: agar menu tengah bisa diposisikan absolute terhadap header ini */}
       <header className="relative flex flex-col xl:flex-row justify-between items-center mb-10 gap-6 py-2">
         
-        {/* 1. BAGIAN KIRI (LOGO & JUDUL) */}
+        {/* 1. BAGIAN KIRI */}
         <div className="w-full xl:w-auto flex flex-col justify-center xl:block z-10">
           <div className="bg-blue-600/30 text-blue-200 text-[10px] font-bold px-3 py-1 rounded-full w-fit mb-2 flex items-center gap-2 border border-blue-400/20 backdrop-blur-sm">
              <Activity size={12} /> Sistem Monitoring Terdepan
@@ -56,37 +58,21 @@ export default function Dashboard() {
           <p className="text-blue-200 opacity-80 text-sm">Dengue Monitor Information System</p>
         </div>
 
-        {/* 2. BAGIAN TENGAH (MENU NAVIGASI BARU) */}
-        {/* Posisi Absolute di tengah layar khusus tampilan Desktop (xl) */}
+        {/* 2. BAGIAN TENGAH (NAVIGASI) */}
         <nav className="hidden xl:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white/10 backdrop-blur-md border border-white/10 rounded-full p-1.5 shadow-2xl items-center gap-1 z-10">
-            
-            {/* Menu: Beranda (Aktif) */}
             <Link href="/" className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-full text-sm font-bold shadow-lg shadow-blue-600/40 transition-all hover:scale-105">
                 <Home size={16} /> Beranda
             </Link>
-
-            {/* Menu: Dashboard (Link ke Prediksi) */}
-            <Link href="/prediksi" className="flex items-center gap-2 px-5 py-2.5 text-blue-100 hover:text-white hover:bg-white/10 rounded-full text-sm font-medium transition-all">
-                <LayoutDashboard size={16} /> Dashboard
+            <Link href="/datatabel" className="flex items-center gap-2 px-5 py-2.5 text-blue-100 hover:text-white hover:bg-white/10 rounded-full text-sm font-medium transition-all">
+                <LayoutDashboard size={16} /> Data Detail
             </Link>
-
-            {/* Dropdown Dummy */}
-            <button className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-blue-100 hover:text-white transition-colors">
-               Analisis <ChevronDown size={14} className="opacity-70"/>
-            </button>
-            
-            <button className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-blue-100 hover:text-white transition-colors">
-               Layanan <ChevronDown size={14} className="opacity-70"/>
-            </button>
-
-            <button className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-blue-100 hover:text-white transition-colors">
-               Info <ChevronDown size={14} className="opacity-70"/>
-            </button>
+            <Link href="/prediksi" className="flex items-center gap-2 px-5 py-2.5 text-blue-100 hover:text-white hover:bg-white/10 rounded-full text-sm font-medium transition-all">
+                <LayoutDashboard size={16} /> Prediksi
+            </Link>
         </nav>
 
-        {/* 3. BAGIAN KANAN (TOMBOL AKSI) */}
+        {/* 3. BAGIAN KANAN */}
         <div className="flex flex-wrap justify-center xl:justify-end gap-3 w-full xl:w-auto z-10">
-            {/* Tombol Prediksi AI */}
             <Link 
               href="/prediksi" 
               className="bg-white text-blue-900 px-5 py-2.5 rounded-xl font-bold hover:bg-blue-50 transition flex items-center gap-2 shadow-lg shadow-blue-900/20 group"
@@ -97,7 +83,6 @@ export default function Dashboard() {
               <ArrowRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform"/>
             </Link>
 
-            {/* Filter Tahun */}
             <div className="bg-blue-950/50 backdrop-blur-md p-1.5 rounded-xl border border-blue-500/30 flex items-center">
               <span className="text-[10px] text-blue-300 px-2 uppercase tracking-wider font-bold">Data:</span>
               <select
@@ -114,9 +99,9 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* --- KONTEN DASHBOARD (SAMA SEPERTI SEBELUMNYA) --- */}
+      {/* --- KONTEN DASHBOARD --- */}
       
-      {/* STATS GRID */}
+      {/* 1. STATS GRID */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <StatCard title="Total Kasus" value={data.summary.total} sub="+12% Real" icon={<Activity />} color="blue" />
         <StatCard title="Kasus Aktif" value={data.summary.active} sub="-5%" icon={<AlertTriangle />} color="indigo" />
@@ -124,8 +109,8 @@ export default function Dashboard() {
         <StatCard title="Wilayah Terdampak" value={data.summary.affected} sub="Kecamatan" icon={<MapPin />} color="sky" />
       </div>
 
-      {/* MAIN CONTENT GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+      {/* 2. MAIN CONTENT GRID (Grafik Utama & Peta) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         
         {/* CHART SECTION */}
         <div className="lg:col-span-2 bg-white/5 backdrop-blur-xl rounded-3xl p-6 border border-white/10 shadow-2xl">
@@ -168,20 +153,25 @@ export default function Dashboard() {
           <div className="flex-1 min-h-[300px] rounded-2xl overflow-hidden relative z-0 border-2 border-white/5 shadow-inner">
              <MapCluster data={data.locations} />
           </div>
-          {/* Legend Map */}
           <div className="mt-4 flex justify-around text-[11px] font-semibold text-blue-200 bg-blue-950/30 p-2 rounded-xl">
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></span>Bahaya</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.6)]"></span>Waspada</span>
             <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]"></span>Aman</span>
           </div>
         </div>
-
       </div>
+
+      {/* 3. DETAIL CHARTS (Donut, Line, & Top 3 Bar) - DITAMBAHKAN DISINI */}
+      <DetailedCharts 
+         locations={data.locations} 
+         monthlyTrend={data.monthlyTrend} 
+      />
+
     </div>
   );
 }
 
-// Komponen StatCard Dipercantik
+// Komponen StatCard (Tidak berubah)
 function StatCard({ title, value, sub, icon, color }: any) {
   return (
     <div className={`bg-blue-600/20 backdrop-blur-md p-6 rounded-2xl border border-blue-400/20 hover:bg-blue-600/30 transition duration-300 group relative overflow-hidden`}>

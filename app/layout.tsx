@@ -6,13 +6,13 @@ import 'leaflet/dist/leaflet.css';
 
 // Import Komponen
 import Footer from "@/components/Footer"; 
-import Navbar from "@/components/Navbar"; // <--- IMPORT NAVBAR
+// Hapus import Navbar jika ada
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "DEN-Smart | Dashboard DBD",
-  description: "Sistem Monitoring dan Peringatan Dini DBD berbasis AI",
+  title: "DEMIS | DBD Information System",
+  description: "Sistem Monitoring Wabah DBD berbasis AI",
 };
 
 export default function RootLayout({
@@ -22,14 +22,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="id">
-      <body className={`${inter.className} bg-[#0f172a]`}> {/* Background Gelap Global */}
+      <body className={`${inter.className} bg-[#0f172a]`}>
         
-        {/* 1. Pasang Navbar di paling atas */}
-        <Navbar />
+        {/* 1. Navbar SUDAH DIHILANGKAN dari sini */}
 
         {/* 2. Konten Halaman */}
-        {/* Tambahkan padding-top (pt-24) agar konten tidak tertutup Navbar yang fixed */}
-        <main className="pt-24 min-h-screen">
+        {/* PENTING: Saya hapus 'pt-24' agar halaman Page.tsx Anda bisa full sampai atas */}
+        <main className="min-h-screen">
           {children}
         </main>
 
